@@ -2,13 +2,7 @@
 
 This repository contains the complete implementation and reports for the Data Visualisation Final Project.
 
-## Group Members
-* [Group Member 1 Name] - [ID]
-* [Group Member 2 Name] - [ID]
-* [Group Member 3 Name] - [ID]
-* [Group Member 4 Name] - [ID]
 
----
 
 ## Project Structure
 
