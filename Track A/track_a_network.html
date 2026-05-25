@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Westeros Social Network Discovery</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <!-- Vis Network Standalone -->
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+
+    <style>
+        :root {
+            --bg-deep: #07090e;
+            --bg-sidebar: #0f111a;
+            --bg-card: #161925;
+            --border-color: rgba(255, 255, 255, 0.06);
+            --text-primary: #f8f8f2;
+            --text-secondary: #9aa0a6;
+            --accent: #bd93f9;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-deep);
+            color: var(--text-primary);
+            overflow: hidden;
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* --- SIDEBAR STYLE --- */
+        .sidebar {
+            width: 380px;
+            height: 100vh;
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+            box-shadow: 4px 0 25px rgba(0, 0, 0, 0.6);
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border-color);
+            background: linear-gradient(180deg, rgba(189, 147, 249, 0.05) 0%, rgba(0, 0, 0, 0) 100%);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+
+        .brand i {
+            font-size: 24px;
+            color: var(--accent);
+            text-shadow: 0 0 10px rgba(189, 147, 249, 0.4);
+        }
+
+        .brand h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 20px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .subtitle {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Scrollbar styling */
+        .sidebar-content::-webkit-scrollbar {
+            width: 6px;
+        }
+        .sidebar-content::-webkit-scrollbar-thumb {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        .section-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--accent);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            padding: 14px;
+            border-radius: 12px;
+        }
+
+        .input-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .select-input, .text-input {
+            width: 100%;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 13px;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .select-input:focus, .text-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(189, 147, 249, 0.2);
+        }
+
+        .btn-toggle-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-toggle {
+            flex: 1;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .btn-toggle.active {
+            background-color: var(--accent);
+            border-color: var(--accent);
+            color: #000;
+        }
+
+        .btn-toggle:hover:not(.active) {
+            border-color: rgba(255, 255, 255, 0.2);
+            color: var(--text-primary);
+        }
+
+        /* --- LEGEND STYLE --- */
+        .legend-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 12px;
+            padding: 8px;
+            border-radius: 8px;
+            background-color: rgba(255, 255, 255, 0.01);
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .legend-item:hover {
+            background-color: rgba(255, 255, 255, 0.03);
+            border-color: var(--border-color);
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            box-shadow: 0 0 8px currentColor;
+        }
+
+        /* --- CHARACTER CARD --- */
+        .profile-card {
+            background: linear-gradient(135deg, var(--bg-card) 0%, rgba(22, 25, 37, 0.7) 100%);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .profile-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            height: 100%;
+            color: var(--text-secondary);
+            font-size: 13px;
+            gap: 8px;
+            padding: 20px 10px;
+        }
+
+        .profile-placeholder i {
+            font-size: 32px;
+            color: rgba(255, 255, 255, 0.1);
+        }
+
+        .profile-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .profile-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .faction-badge {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 3px 8px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            margin-top: 4px;
+            display: inline-block;
+        }
+
+        .profile-meta-row {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .meta-stat {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .stat-label-container {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .stat-bar-outer {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .stat-bar-inner {
+            height: 100%;
+            background-color: var(--accent);
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .connections-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 6px;
+        }
+
+        .connection-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            padding: 6px 10px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.02);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .connection-item:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: var(--border-color);
+        }
+
+        .sidebar-footer {
+            padding: 16px 20px;
+            border-top: 1px solid var(--border-color);
+            background: rgba(0, 0, 0, 0.2);
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        /* --- CANVAS CONTAINER STYLE --- */
+        .canvas-container {
+            flex: 1;
+            height: 100vh;
+            position: relative;
+            background-color: var(--bg-deep);
+        }
+
+        #network {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* --- FLOAT STATS CARD --- */
+        .float-stats-card {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            background: rgba(15, 17, 26, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 14px 20px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            display: flex;
+            gap: 20px;
+            z-index: 5;
+        }
+
+        .float-stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .float-stat-val {
+            font-family: 'Outfit', sans-serif;
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--accent);
+        }
+
+        .float-stat-lbl {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .float-stat-divider {
+            width: 1px;
+            background-color: var(--border-color);
+            align-self: stretch;
+        }
+
+        /* Vis.js Custom Tooltip override */
+        div.vis-tooltip {
+            background-color: rgba(15, 17, 26, 0.9) !important;
+            border: 1px solid rgba(255, 255, 255, 0.12) !important;
+            border-radius: 8px !important;
+            color: #ffffff !important;
+            font-family: 'Inter', sans-serif !important;
+            padding: 12px !important;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6) !important;
+            backdrop-filter: blur(8px) !important;
+            max-width: 280px !important;
+            font-size: 12px !important;
+            line-height: 1.5 !important;
+            word-break: break-word !important;
+            white-space: normal !important;
+        }
+
+        /* Custom zoom controls */
+        .zoom-controls {
+            position: absolute;
+            bottom: 24px;
+            right: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            z-index: 5;
+        }
+
+        .zoom-btn {
+            width: 40px;
+            height: 40px;
+            background: rgba(15, 17, 26, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+        }
+
+        .zoom-btn:hover {
+            background: var(--accent);
+            color: #000;
+            border-color: var(--accent);
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-deep);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 15;
+            transition: opacity 0.5s ease;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(189, 147, 249, 0.1);
+            border-radius: 50%;
+            border-top-color: var(--accent);
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Loading Screen -->
+    <div id="loading" class="loading-overlay">
+        <div class="spinner"></div>
+        <h2 style="font-family: 'Outfit', sans-serif; font-weight: 600; font-size: 18px; letter-spacing: 1px;">Stabilizing Westeros Network...</h2>
+        <p style="color: var(--text-secondary); font-size: 12px; margin-top: 6px;">Simulating political alliances and modularity groups</p>
+    </div>
+
+    <!-- Sidebar Dashboard -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <div class="brand">
+                <i class="ph-fill ph-target"></i>
+                <h1>Westeros Audits</h1>
+            </div>
+            <div class="subtitle">Modularity & Centrality Engine</div>
+        </div>
+        
+        <div class="sidebar-content">
+            <!-- Controls Section -->
+            <div>
+                <div class="section-title">
+                    <i class="ph-bold ph-sliders"></i> Network Controls
+                </div>
+                <div class="control-group">
+                    <div>
+                        <div class="input-label">Node Size Factor (Metric)</div>
+                        <div class="btn-toggle-group">
+                            <button id="btn-betweenness" class="btn-toggle active" onclick="switchMetric('betweenness')">
+                                <i class="ph-bold ph-git-merge"></i> Betweenness
+                            </button>
+                            <button id="btn-degree" class="btn-toggle" onclick="switchMetric('degree')">
+                                <i class="ph-bold ph-hash"></i> Degree
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="input-label">Filter by Faction</div>
+                        <select id="faction-filter" class="select-input" onchange="filterFaction(this.value)">
+                            <option value="all">All Factions</option>
+                            <option value="House Stark">House Stark</option>
+                            <option value="House Lannister">House Lannister</option>
+                            <option value="House Targaryen">House Targaryen</option>
+                            <option value="Night's Watch">Night's Watch</option>
+                            <option value="House Baratheon">House Baratheon</option>
+                            <option value="Wildlings">Wildlings</option>
+                            <option value="Independent">Independent</option>
+                        </select>
+                    </div>
+                    <div>
+                        <div class="input-label">Search Character</div>
+                        <input type="text" id="search-input" class="text-input" placeholder="Type character name..." oninput="searchCharacter(this.value)">
+                    </div>
+                    <div>
+                        <div class="btn-toggle-group">
+                            <button id="btn-physics" class="btn-toggle active" onclick="togglePhysics()">
+                                <i id="physics-icon" class="ph-bold ph-pause"></i> Pause Simulation
+                            </button>
+                            <button class="btn-toggle" onclick="resetView()">
+                                <i class="ph-bold ph-arrows-counter-clockwise"></i> Reset View
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profile card -->
+            <div>
+                <div class="section-title">
+                    <i class="ph-bold ph-user-circle"></i> Character Profile
+                </div>
+                <div id="profile-card" class="profile-card">
+                    <div class="profile-placeholder">
+                        <i class="ph ph-fingerprint"></i>
+                        <p>Click on any character node to inspect centrality stats and key relationships.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modularity Legend -->
+            <div>
+                <div class="section-title">
+                    <i class="ph-bold ph-palette"></i> Discovered Communities
+                </div>
+                <div class="legend-list" id="legend-list">
+                    <!-- Loaded dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar-footer">
+            <span>Track A deliverables verified</span>
+            <span>v1.2</span>
+        </div>
+    </div>
+
+    <!-- Canvas Container -->
+    <div class="canvas-container">
+        <!-- Floating stats -->
+        <div class="float-stats-card">
+            <div class="float-stat">
+                <span class="float-stat-val">39</span>
+                <span class="float-stat-lbl">Nodes</span>
+            </div>
+            <div class="float-stat-divider"></div>
+            <div class="float-stat">
+                <span class="float-stat-val">81</span>
+                <span class="float-stat-lbl">Edges</span>
+            </div>
+            <div class="float-stat-divider"></div>
+            <div class="float-stat">
+                <span class="float-stat-val" id="comm-count">5</span>
+                <span class="float-stat-lbl">Alliances</span>
+            </div>
+        </div>
+
+        <!-- Custom Zoom Controls -->
+        <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoomIn()"><i class="ph-bold ph-plus"></i></button>
+            <button class="zoom-btn" onclick="zoomOut()"><i class="ph-bold ph-minus"></i></button>
+            <button class="zoom-btn" onclick="resetView()"><i class="ph-bold ph-frame-corners"></i></button>
+        </div>
+
+        <!-- Vis Network graph div -->
+        <div id="network"></div>
+    </div>
+
+    <script type="text/javascript">
+        // Inject Graph data from python
+        const graphData = {
+            nodes: [{"id": "Ned_Stark", "label": "Ned Stark", "faction": "House Stark", "communityId": 0, "communityName": "House Stark (The North)", "baseColor": "#8be9fd", "betweenness": 0.10881934566145093, "degreeCentrality": 0.23684210526315788, "degree": 9, "connections": [{"id": "Robert_Baratheon", "label": "Robert Baratheon", "weight": 9}, {"id": "Catelyn_Stark", "label": "Catelyn Stark", "weight": 8}, {"id": "Arya_Stark", "label": "Arya Stark", "weight": 8}, {"id": "Sansa_Stark", "label": "Sansa Stark", "weight": 7}, {"id": "Jon_Snow", "label": "Jon Snow", "weight": 7}]}, {"id": "Catelyn_Stark", "label": "Catelyn Stark", "faction": "House Stark", "communityId": 0, "communityName": "House Stark (The North)", "baseColor": "#8be9fd", "betweenness": 0.044096728307254626, "degreeCentrality": 0.15789473684210525, "degree": 6, "connections": [{"id": "Ned_Stark", "label": "Ned Stark", "weight": 8}, {"id": "Robb_Stark", "label": "Robb Stark", "weight": 8}, {"id": "Brienne_of_Tarth", "label": "Brienne of Tarth", "weight": 7}, {"id": "Tyrion_Lannister", "label": "Tyrion Lannister", "weight": 6}, {"id": "Bran_Stark", "label": "Bran Stark", "weight": 5}]}, {"id": "Robb_Stark", "label": "Robb Stark", "faction": "House Stark", "communityId": 0, "communityName": "House Stark (The North)", "baseColor": "#8be9fd", "betweenness": 0.03271692745376956, "degreeCentrality": 0.10526315789473684, "degree": 4, "connections": [{"id": "Catelyn_Stark", "label": "Catelyn Stark", "weight": 8}, {"id": "Ned_Stark", "label": "Ned Stark", "weight": 6}, {"id": "Bran_Stark", "label": "Bran Stark", "weight": 5}, {"id": "Jon_Snow", "label": "Jon Snow", "weight": 5}]}, {"id": "Sansa_Stark", "label": "Sansa Stark", "faction": "House Stark", "communityId": 0, "communityName": "House Stark (The North)", "baseColor": "#8be9fd", "betweenness": 0.03651019440493125, "degreeCentrality": 0.23684210526315788, "degree": 9, "connections": [{"id": "Littlefinger", "label": "Petyr Baelish (Littlefinger)", "weight": 9}, {"id": "Joffrey_Baratheon", "label": "Joffrey Baratheon", "weight": 8}, {"id": "Brienne_of_Tarth", "label": "Brienne of Tarth", "weight": 8}, {"id": "Ned_Stark", "label": "Ned Stark", "weight": 7}, {"id": "Cersei_Lannister", "label": "Cersei Lannister", "weight": 7}]}, {"id": "Arya_Stark", "label": "Arya Stark", "faction": "House Stark", "communityId": 0, "communityName": "House Stark (The North)", "baseColor": "#8be9fd", "betweenness": 0.05832147937411095, "degreeCentrality": 0.13157894736842105, "degree": 5, "connections": [{"id": "The_Hound", "label": "The Hound (Sandor Clegane)", "weight": 9}, {"id": "Ned_Stark", "label": "Ned Stark", "weight": 8}, {"id": "Sansa_Stark", "label": "Sansa Stark", "weight": 6}, {"id": "Jon_Snow", "label": "Jon Snow", "weight": 6}, {"id": "Brienne_of_Tarth", "label": "Brienne of Tarth", "weight": 5}]}, {"id": "Bran_Stark", "label": "Bran Stark", "faction": "House Stark", "communityId": 0, "communityName": "House Stark (The North)", "baseColor": "#8be9fd", "betweenness": 0.052631578947368425, "degreeCentrality": 0.10526315789473684, "degree": 4, "connections": [{"id": "Hodor", "label": "Hodor", "weight": 10}, {"id": "Ned_Stark", "label": "Ned Stark", "weight": 6}, {"id": "Catelyn_Stark", "label": "Catelyn Stark", "weight": 5}, {"id": "Robb_Stark", "label": "Robb Stark", "weight": 5}]}, {"id": "Hodor", "label": "Hodor", "faction": "House Stark", "communityId": 0, "communityName": "House Stark (The North)", "baseColor": "#8be9fd", "betweenness": 0.0, "degreeCentrality": 0.02631578947368421, "degree": 1, "connections": [{"id": "Bran_Stark", "label": "Bran Stark", "weight": 10}]}, {"id": "The_Hound", "label": "The Hound (Sandor Clegane)", "faction": "Independent", "communityId": 0, "communityName": "House Stark (The North)", "baseColor": "#8be9fd", "betweenness": 0.0016595542911332383, "degreeCentrality": 0.07894736842105263, "degree": 3, "connections": [{"id": "Arya_Stark", "label": "Arya Stark", "weight": 9}, {"id": "Sansa_Stark", "label": "Sansa Stark", "weight": 6}, {"id": "Joffrey_Baratheon", "label": "Joffrey Baratheon", "weight": 5}]}, {"id": "Tyrion_Lannister", "label": "Tyrion Lannister", "faction": "House Lannister", "communityId": 2, "communityName": "House Lannister (King's Landing)", "baseColor": "#ffb86c", "betweenness": 0.26458036984352773, "degreeCentrality": 0.3157894736842105, "degree": 12, "connections": [{"id": "Jaime_Lannister", "label": "Jaime Lannister", "weight": 9}, {"id": "Tywin_Lannister", "label": "Tywin Lannister", "weight": 9}, {"id": "Bronn", "label": "Bronn", "weight": 9}, {"id": "Shae", "label": "Shae", "weight": 9}, {"id": "Cersei_Lannister", "label": "Cersei Lannister", "weight": 8}]}, {"id": "Cersei_Lannister", "label": "Cersei Lannister", "faction": "House Lannister", "communityId": 2, "communityName": "House Lannister (King's Landing)", "baseColor": "#ffb86c", "betweenness": 0.15149359886201993, "degreeCentrality": 0.23684210526315788, "degree": 9, "connections": [{"id": "Jaime_Lannister", "label": "Jaime Lannister", "weight": 10}, {"id": "Joffrey_Baratheon", "label": "Joffrey Baratheon", "weight": 9}, {"id": "Tyrion_Lannister", "label": "Tyrion Lannister", "weight": 8}, {"id": "Tywin_Lannister", "label": "Tywin Lannister", "weight": 8}, {"id": "Sansa_Stark", "label": "Sansa Stark", "weight": 7}]}, {"id": "Jaime_Lannister", "label": "Jaime Lannister", "faction": "House Lannister", "communityId": 2, "communityName": "House Lannister (King's Landing)", "baseColor": "#ffb86c", "betweenness": 0.018018018018018018, "degreeCentrality": 0.13157894736842105, "degree": 5, "connections": [{"id": "Cersei_Lannister", "label": "Cersei Lannister", "weight": 10}, {"id": "Tyrion_Lannister", "label": "Tyrion Lannister", "weight": 9}, {"id": "Brienne_of_Tarth", "label": "Brienne of Tarth", "weight": 8}, {"id": "Tywin_Lannister", "label": "Tywin Lannister", "weight": 7}, {"id": "Bronn", "label": "Bronn", "weight": 6}]}, {"id": "Tywin_Lannister", "label": "Tywin Lannister", "faction": "House Lannister", "communityId": 2, "communityName": "House Lannister (King's Landing)", "baseColor": "#ffb86c", "betweenness": 0.05547652916073969, "degreeCentrality": 0.13157894736842105, "degree": 5, "connections": [{"id": "Tyrion_Lannister", "label": "Tyrion Lannister", "weight": 9}, {"id": "Cersei_Lannister", "label": "Cersei Lannister", "weight": 8}, {"id": "Jaime_Lannister", "label": "Jaime Lannister", "weight": 7}, {"id": "Joffrey_Baratheon", "label": "Joffrey Baratheon", "weight": 6}, {"id": "The_Mountain", "label": "The Mountain (Gregor Clegane)", "weight": 5}]}, {"id": "Joffrey_Baratheon", "label": "Joffrey Baratheon", "faction": "House Lannister", "communityId": 2, "communityName": "House Lannister (King's Landing)", "baseColor": "#ffb86c", "betweenness": 0.023233760075865344, "degreeCentrality": 0.13157894736842105, "degree": 5, "connections": [{"id": "Cersei_Lannister", "label": "Cersei Lannister", "weight": 9}, {"id": "Sansa_Stark", "label": "Sansa Stark", "weight": 8}, {"id": "Tyrion_Lannister", "label": "Tyrion Lannister", "weight": 7}, {"id": "Tywin_Lannister", "label": "Tywin Lannister", "weight": 6}, {"id": "The_Hound", "label": "The Hound (Sandor Clegane)", "weight": 5}]}, {"id": "Bronn", "label": "Bronn", "faction": "House Lannister", "communityId": 2, "communityName": "House Lannister (King's Landing)", "baseColor": "#ffb86c", "betweenness": 0.0, "degreeCentrality": 0.05263157894736842, "degree": 2, "connections": [{"id": "Tyrion_Lannister", "label": "Tyrion Lannister", "weight": 9}, {"id": "Jaime_Lannister", "label": "Jaime Lannister", "weight": 6}]}, {"id": "Shae", "label": "Shae", "faction": "House Lannister", "communityId": 2, "communityName": "House Lannister (King's Landing)", "baseColor": "#ffb86c", "betweenness": 0.0, "degreeCentrality": 0.02631578947368421, "degree": 1, "connections": [{"id": "Tyrion_Lannister", "label": "Tyrion Lannister", "weight": 9}]}, {"id": "The_Mountain", "label": "The Mountain (Gregor Clegane)", "faction": "House Lannister", "communityId": 2, "communityName": "House Lannister (King's Landing)", "baseColor": "#ffb86c", "betweenness": 0.0, "degreeCentrality": 0.02631578947368421, "degree": 1, "connections": [{"id": "Tywin_Lannister", "label": "Tywin Lannister", "weight": 5}]}, {"id": "Littlefinger", "label": "Petyr Baelish (Littlefinger)", "faction": "Independent", "communityId": 2, "communityName": "House Lannister (King's Landing)", "baseColor": "#ffb86c", "betweenness": 0.004267425320056899, "degreeCentrality": 0.13157894736842105, "degree": 5, "connections": [{"id": "Sansa_Stark", "label": "Sansa Stark", "weight": 9}, {"id": "Varys", "label": "Varys (The Spider)", "weight": 8}, {"id": "Tyrion_Lannister", "label": "Tyrion Lannister", "weight": 6}, {"id": "Cersei_Lannister", "label": "Cersei Lannister", "weight": 6}, {"id": "Ned_Stark", "label": "Ned Stark", "weight": 5}]}, {"id": "Varys", "label": "Varys (The Spider)", "faction": "Independent", "communityId": 2, "communityName": "House Lannister (King's Landing)", "baseColor": "#ffb86c", "betweenness": 0.05974395448079659, "degreeCentrality": 0.10526315789473684, "degree": 4, "connections": [{"id": "Tyrion_Lannister", "label": "Tyrion Lannister", "weight": 8}, {"id": "Littlefinger", "label": "Petyr Baelish (Littlefinger)", "weight": 8}, {"id": "Daenerys_Targaryen", "label": "Daenerys Targaryen", "weight": 6}, {"id": "Cersei_Lannister", "label": "Cersei Lannister", "weight": 5}]}, {"id": "Daenerys_Targaryen", "label": "Daenerys Targaryen", "faction": "House Targaryen", "communityId": 4, "communityName": "House Targaryen (Essos Campaign)", "baseColor": "#ff5555", "betweenness": 0.2972972972972973, "degreeCentrality": 0.23684210526315788, "degree": 9, "connections": [{"id": "Khal_Drogo", "label": "Khal Drogo", "weight": 10}, {"id": "Jorah_Mormont", "label": "Jorah Mormont", "weight": 9}, {"id": "Missandei", "label": "Missandei", "weight": 9}, {"id": "Grey_Worm", "label": "Grey Worm", "weight": 8}, {"id": "Daario_Naharis", "label": "Daario Naharis", "weight": 8}]}, {"id": "Jorah_Mormont", "label": "Jorah Mormont", "faction": "House Targaryen", "communityId": 4, "communityName": "House Targaryen (Essos Campaign)", "baseColor": "#ff5555", "betweenness": 0.0, "degreeCentrality": 0.05263157894736842, "degree": 2, "connections": [{"id": "Daenerys_Targaryen", "label": "Daenerys Targaryen", "weight": 9}, {"id": "Barristan_Selmy", "label": "Barristan Selmy", "weight": 5}]}, {"id": "Khal_Drogo", "label": "Khal Drogo", "faction": "House Targaryen", "communityId": 4, "communityName": "House Targaryen (Essos Campaign)", "baseColor": "#ff5555", "betweenness": 0.0, "degreeCentrality": 0.02631578947368421, "degree": 1, "connections": [{"id": "Daenerys_Targaryen", "label": "Daenerys Targaryen", "weight": 10}]}, {"id": "Missandei", "label": "Missandei", "faction": "House Targaryen", "communityId": 4, "communityName": "House Targaryen (Essos Campaign)", "baseColor": "#ff5555", "betweenness": 0.0, "degreeCentrality": 0.05263157894736842, "degree": 2, "connections": [{"id": "Daenerys_Targaryen", "label": "Daenerys Targaryen", "weight": 9}, {"id": "Grey_Worm", "label": "Grey Worm", "weight": 8}]}, {"id": "Grey_Worm", "label": "Grey Worm", "faction": "House Targaryen", "communityId": 4, "communityName": "House Targaryen (Essos Campaign)", "baseColor": "#ff5555", "betweenness": 0.0, "degreeCentrality": 0.05263157894736842, "degree": 2, "connections": [{"id": "Daenerys_Targaryen", "label": "Daenerys Targaryen", "weight": 8}, {"id": "Missandei", "label": "Missandei", "weight": 8}]}, {"id": "Daario_Naharis", "label": "Daario Naharis", "faction": "House Targaryen", "communityId": 4, "communityName": "House Targaryen (Essos Campaign)", "baseColor": "#ff5555", "betweenness": 0.0, "degreeCentrality": 0.02631578947368421, "degree": 1, "connections": [{"id": "Daenerys_Targaryen", "label": "Daenerys Targaryen", "weight": 8}]}, {"id": "Barristan_Selmy", "label": "Barristan Selmy", "faction": "House Targaryen", "communityId": 4, "communityName": "House Targaryen (Essos Campaign)", "baseColor": "#ff5555", "betweenness": 0.0, "degreeCentrality": 0.05263157894736842, "degree": 2, "connections": [{"id": "Daenerys_Targaryen", "label": "Daenerys Targaryen", "weight": 7}, {"id": "Jorah_Mormont", "label": "Jorah Mormont", "weight": 5}]}, {"id": "Jon_Snow", "label": "Jon Snow", "faction": "Night's Watch", "communityId": 3, "communityName": "Night's Watch & Wildlings", "baseColor": "#50fa7b", "betweenness": 0.3883357041251778, "degreeCentrality": 0.2894736842105263, "degree": 11, "connections": [{"id": "Ygritte", "label": "Ygritte", "weight": 10}, {"id": "Samwell_Tarly", "label": "Samwell Tarly", "weight": 9}, {"id": "Jeor_Mormont", "label": "Jeor Mormont", "weight": 8}, {"id": "Tormund", "label": "Tormund Giantsbane", "weight": 8}, {"id": "Daenerys_Targaryen", "label": "Daenerys Targaryen", "weight": 8}]}, {"id": "Samwell_Tarly", "label": "Samwell Tarly", "faction": "Night's Watch", "communityId": 3, "communityName": "Night's Watch & Wildlings", "baseColor": "#50fa7b", "betweenness": 0.0, "degreeCentrality": 0.10526315789473684, "degree": 4, "connections": [{"id": "Jon_Snow", "label": "Jon Snow", "weight": 9}, {"id": "Gilly", "label": "Gilly", "weight": 9}, {"id": "Maester_Aemon", "label": "Maester Aemon", "weight": 7}, {"id": "Jeor_Mormont", "label": "Jeor Mormont", "weight": 6}]}, {"id": "Jeor_Mormont", "label": "Jeor Mormont", "faction": "Night's Watch", "communityId": 3, "communityName": "Night's Watch & Wildlings", "baseColor": "#50fa7b", "betweenness": 0.051920341394025606, "degreeCentrality": 0.10526315789473684, "degree": 4, "connections": [{"id": "Jon_Snow", "label": "Jon Snow", "weight": 8}, {"id": "Samwell_Tarly", "label": "Samwell Tarly", "weight": 6}, {"id": "Maester_Aemon", "label": "Maester Aemon", "weight": 5}, {"id": "Gilly", "label": "Gilly", "weight": 3}]}, {"id": "Maester_Aemon", "label": "Maester Aemon", "faction": "Night's Watch", "communityId": 3, "communityName": "Night's Watch & Wildlings", "baseColor": "#50fa7b", "betweenness": 0.0, "degreeCentrality": 0.07894736842105263, "degree": 3, "connections": [{"id": "Samwell_Tarly", "label": "Samwell Tarly", "weight": 7}, {"id": "Jon_Snow", "label": "Jon Snow", "weight": 6}, {"id": "Jeor_Mormont", "label": "Jeor Mormont", "weight": 5}]}, {"id": "Ygritte", "label": "Ygritte", "faction": "Wildlings", "communityId": 3, "communityName": "Night's Watch & Wildlings", "baseColor": "#50fa7b", "betweenness": 0.0, "degreeCentrality": 0.05263157894736842, "degree": 2, "connections": [{"id": "Jon_Snow", "label": "Jon Snow", "weight": 10}, {"id": "Tormund", "label": "Tormund Giantsbane", "weight": 6}]}, {"id": "Tormund", "label": "Tormund Giantsbane", "faction": "Wildlings", "communityId": 3, "communityName": "Night's Watch & Wildlings", "baseColor": "#50fa7b", "betweenness": 0.001422475106685633, "degreeCentrality": 0.07894736842105263, "degree": 3, "connections": [{"id": "Jon_Snow", "label": "Jon Snow", "weight": 8}, {"id": "Mance_Rayder", "label": "Mance Rayder", "weight": 8}, {"id": "Ygritte", "label": "Ygritte", "weight": 6}]}, {"id": "Mance_Rayder", "label": "Mance Rayder", "faction": "Wildlings", "communityId": 3, "communityName": "Night's Watch & Wildlings", "baseColor": "#50fa7b", "betweenness": 0.0, "degreeCentrality": 0.05263157894736842, "degree": 2, "connections": [{"id": "Tormund", "label": "Tormund Giantsbane", "weight": 8}, {"id": "Jon_Snow", "label": "Jon Snow", "weight": 7}]}, {"id": "Gilly", "label": "Gilly", "faction": "Wildlings", "communityId": 3, "communityName": "Night's Watch & Wildlings", "baseColor": "#50fa7b", "betweenness": 0.0, "degreeCentrality": 0.05263157894736842, "degree": 2, "connections": [{"id": "Samwell_Tarly", "label": "Samwell Tarly", "weight": 9}, {"id": "Jeor_Mormont", "label": "Jeor Mormont", "weight": 3}]}, {"id": "Stannis_Baratheon", "label": "Stannis Baratheon", "faction": "House Baratheon", "communityId": 1, "communityName": "House Baratheon & Rebels", "baseColor": "#bd93f9", "betweenness": 0.10241820768136559, "degreeCentrality": 0.10526315789473684, "degree": 4, "connections": [{"id": "Melisandre", "label": "Melisandre", "weight": 9}, {"id": "Davos_Seaworth", "label": "Davos Seaworth", "weight": 9}, {"id": "Renly_Baratheon", "label": "Renly Baratheon", "weight": 6}, {"id": "Robert_Baratheon", "label": "Robert Baratheon", "weight": 4}]}, {"id": "Melisandre", "label": "Melisandre", "faction": "House Baratheon", "communityId": 1, "communityName": "House Baratheon & Rebels", "baseColor": "#bd93f9", "betweenness": 0.0, "degreeCentrality": 0.05263157894736842, "degree": 2, "connections": [{"id": "Stannis_Baratheon", "label": "Stannis Baratheon", "weight": 9}, {"id": "Davos_Seaworth", "label": "Davos Seaworth", "weight": 6}]}, {"id": "Davos_Seaworth", "label": "Davos Seaworth", "faction": "House Baratheon", "communityId": 1, "communityName": "House Baratheon & Rebels", "baseColor": "#bd93f9", "betweenness": 0.0, "degreeCentrality": 0.05263157894736842, "degree": 2, "connections": [{"id": "Stannis_Baratheon", "label": "Stannis Baratheon", "weight": 9}, {"id": "Melisandre", "label": "Melisandre", "weight": 6}]}, {"id": "Renly_Baratheon", "label": "Renly Baratheon", "faction": "House Baratheon", "communityId": 0, "communityName": "House Stark (The North)", "baseColor": "#8be9fd", "betweenness": 0.01209103840682788, "degreeCentrality": 0.07894736842105263, "degree": 3, "connections": [{"id": "Brienne_of_Tarth", "label": "Brienne of Tarth", "weight": 8}, {"id": "Stannis_Baratheon", "label": "Stannis Baratheon", "weight": 6}, {"id": "Robert_Baratheon", "label": "Robert Baratheon", "weight": 5}]}, {"id": "Robert_Baratheon", "label": "Robert Baratheon", "faction": "House Baratheon", "communityId": 0, "communityName": "House Stark (The North)", "baseColor": "#8be9fd", "betweenness": 0.1600284495021337, "degreeCentrality": 0.10526315789473684, "degree": 4, "connections": [{"id": "Ned_Stark", "label": "Ned Stark", "weight": 9}, {"id": "Cersei_Lannister", "label": "Cersei Lannister", "weight": 7}, {"id": "Renly_Baratheon", "label": "Renly Baratheon", "weight": 5}, {"id": "Stannis_Baratheon", "label": "Stannis Baratheon", "weight": 4}]}, {"id": "Brienne_of_Tarth", "label": "Brienne of Tarth", "faction": "Independent", "communityId": 0, "communityName": "House Stark (The North)", "baseColor": "#8be9fd", "betweenness": 0.03437648174490279, "degreeCentrality": 0.13157894736842105, "degree": 5, "connections": [{"id": "Sansa_Stark", "label": "Sansa Stark", "weight": 8}, {"id": "Jaime_Lannister", "label": "Jaime Lannister", "weight": 8}, {"id": "Renly_Baratheon", "label": "Renly Baratheon", "weight": 8}, {"id": "Catelyn_Stark", "label": "Catelyn Stark", "weight": 7}, {"id": "Arya_Stark", "label": "Arya Stark", "weight": 5}]}],
+            edges: [{"id": "edge_0", "from": "Ned_Stark", "to": "Catelyn_Stark", "weight": 8}, {"id": "edge_1", "from": "Ned_Stark", "to": "Robb_Stark", "weight": 6}, {"id": "edge_2", "from": "Ned_Stark", "to": "Sansa_Stark", "weight": 7}, {"id": "edge_3", "from": "Ned_Stark", "to": "Arya_Stark", "weight": 8}, {"id": "edge_4", "from": "Ned_Stark", "to": "Bran_Stark", "weight": 6}, {"id": "edge_5", "from": "Ned_Stark", "to": "Jon_Snow", "weight": 7}, {"id": "edge_6", "from": "Ned_Stark", "to": "Robert_Baratheon", "weight": 9}, {"id": "edge_7", "from": "Ned_Stark", "to": "Cersei_Lannister", "weight": 6}, {"id": "edge_8", "from": "Ned_Stark", "to": "Littlefinger", "weight": 5}, {"id": "edge_9", "from": "Catelyn_Stark", "to": "Robb_Stark", "weight": 8}, {"id": "edge_10", "from": "Catelyn_Stark", "to": "Bran_Stark", "weight": 5}, {"id": "edge_11", "from": "Catelyn_Stark", "to": "Sansa_Stark", "weight": 4}, {"id": "edge_12", "from": "Catelyn_Stark", "to": "Brienne_of_Tarth", "weight": 7}, {"id": "edge_13", "from": "Catelyn_Stark", "to": "Tyrion_Lannister", "weight": 6}, {"id": "edge_14", "from": "Robb_Stark", "to": "Bran_Stark", "weight": 5}, {"id": "edge_15", "from": "Robb_Stark", "to": "Jon_Snow", "weight": 5}, {"id": "edge_16", "from": "Sansa_Stark", "to": "Arya_Stark", "weight": 6}, {"id": "edge_17", "from": "Sansa_Stark", "to": "Joffrey_Baratheon", "weight": 8}, {"id": "edge_18", "from": "Sansa_Stark", "to": "Cersei_Lannister", "weight": 7}, {"id": "edge_19", "from": "Sansa_Stark", "to": "Tyrion_Lannister", "weight": 7}, {"id": "edge_20", "from": "Sansa_Stark", "to": "Littlefinger", "weight": 9}, {"id": "edge_21", "from": "Sansa_Stark", "to": "The_Hound", "weight": 6}, {"id": "edge_22", "from": "Sansa_Stark", "to": "Brienne_of_Tarth", "weight": 8}, {"id": "edge_23", "from": "Arya_Stark", "to": "The_Hound", "weight": 9}, {"id": "edge_24", "from": "Arya_Stark", "to": "Brienne_of_Tarth", "weight": 5}, {"id": "edge_25", "from": "Arya_Stark", "to": "Jon_Snow", "weight": 6}, {"id": "edge_26", "from": "Bran_Stark", "to": "Hodor", "weight": 10}, {"id": "edge_27", "from": "The_Hound", "to": "Joffrey_Baratheon", "weight": 5}, {"id": "edge_28", "from": "Tyrion_Lannister", "to": "Cersei_Lannister", "weight": 8}, {"id": "edge_29", "from": "Tyrion_Lannister", "to": "Jaime_Lannister", "weight": 9}, {"id": "edge_30", "from": "Tyrion_Lannister", "to": "Tywin_Lannister", "weight": 9}, {"id": "edge_31", "from": "Tyrion_Lannister", "to": "Joffrey_Baratheon", "weight": 7}, {"id": "edge_32", "from": "Tyrion_Lannister", "to": "Bronn", "weight": 9}, {"id": "edge_33", "from": "Tyrion_Lannister", "to": "Shae", "weight": 9}, {"id": "edge_34", "from": "Tyrion_Lannister", "to": "Varys", "weight": 8}, {"id": "edge_35", "from": "Tyrion_Lannister", "to": "Littlefinger", "weight": 6}, {"id": "edge_36", "from": "Tyrion_Lannister", "to": "Daenerys_Targaryen", "weight": 7}, {"id": "edge_37", "from": "Tyrion_Lannister", "to": "Jon_Snow", "weight": 6}, {"id": "edge_38", "from": "Cersei_Lannister", "to": "Jaime_Lannister", "weight": 10}, {"id": "edge_39", "from": "Cersei_Lannister", "to": "Tywin_Lannister", "weight": 8}, {"id": "edge_40", "from": "Cersei_Lannister", "to": "Joffrey_Baratheon", "weight": 9}, {"id": "edge_41", "from": "Cersei_Lannister", "to": "Robert_Baratheon", "weight": 7}, {"id": "edge_42", "from": "Cersei_Lannister", "to": "Littlefinger", "weight": 6}, {"id": "edge_43", "from": "Cersei_Lannister", "to": "Varys", "weight": 5}, {"id": "edge_44", "from": "Jaime_Lannister", "to": "Tywin_Lannister", "weight": 7}, {"id": "edge_45", "from": "Jaime_Lannister", "to": "Brienne_of_Tarth", "weight": 8}, {"id": "edge_46", "from": "Jaime_Lannister", "to": "Bronn", "weight": 6}, {"id": "edge_47", "from": "Tywin_Lannister", "to": "Joffrey_Baratheon", "weight": 6}, {"id": "edge_48", "from": "Tywin_Lannister", "to": "The_Mountain", "weight": 5}, {"id": "edge_49", "from": "Littlefinger", "to": "Varys", "weight": 8}, {"id": "edge_50", "from": "Varys", "to": "Daenerys_Targaryen", "weight": 6}, {"id": "edge_51", "from": "Daenerys_Targaryen", "to": "Jorah_Mormont", "weight": 9}, {"id": "edge_52", "from": "Daenerys_Targaryen", "to": "Khal_Drogo", "weight": 10}, {"id": "edge_53", "from": "Daenerys_Targaryen", "to": "Missandei", "weight": 9}, {"id": "edge_54", "from": "Daenerys_Targaryen", "to": "Grey_Worm", "weight": 8}, {"id": "edge_55", "from": "Daenerys_Targaryen", "to": "Daario_Naharis", "weight": 8}, {"id": "edge_56", "from": "Daenerys_Targaryen", "to": "Barristan_Selmy", "weight": 7}, {"id": "edge_57", "from": "Daenerys_Targaryen", "to": "Jon_Snow", "weight": 8}, {"id": "edge_58", "from": "Jorah_Mormont", "to": "Barristan_Selmy", "weight": 5}, {"id": "edge_59", "from": "Missandei", "to": "Grey_Worm", "weight": 8}, {"id": "edge_60", "from": "Jon_Snow", "to": "Samwell_Tarly", "weight": 9}, {"id": "edge_61", "from": "Jon_Snow", "to": "Jeor_Mormont", "weight": 8}, {"id": "edge_62", "from": "Jon_Snow", "to": "Maester_Aemon", "weight": 6}, {"id": "edge_63", "from": "Jon_Snow", "to": "Ygritte", "weight": 10}, {"id": "edge_64", "from": "Jon_Snow", "to": "Tormund", "weight": 8}, {"id": "edge_65", "from": "Jon_Snow", "to": "Mance_Rayder", "weight": 7}, {"id": "edge_66", "from": "Samwell_Tarly", "to": "Gilly", "weight": 9}, {"id": "edge_67", "from": "Samwell_Tarly", "to": "Maester_Aemon", "weight": 7}, {"id": "edge_68", "from": "Samwell_Tarly", "to": "Jeor_Mormont", "weight": 6}, {"id": "edge_69", "from": "Jeor_Mormont", "to": "Maester_Aemon", "weight": 5}, {"id": "edge_70", "from": "Jeor_Mormont", "to": "Gilly", "weight": 3}, {"id": "edge_71", "from": "Ygritte", "to": "Tormund", "weight": 6}, {"id": "edge_72", "from": "Tormund", "to": "Mance_Rayder", "weight": 8}, {"id": "edge_73", "from": "Stannis_Baratheon", "to": "Melisandre", "weight": 9}, {"id": "edge_74", "from": "Stannis_Baratheon", "to": "Davos_Seaworth", "weight": 9}, {"id": "edge_75", "from": "Stannis_Baratheon", "to": "Renly_Baratheon", "weight": 6}, {"id": "edge_76", "from": "Stannis_Baratheon", "to": "Robert_Baratheon", "weight": 4}, {"id": "edge_77", "from": "Melisandre", "to": "Davos_Seaworth", "weight": 6}, {"id": "edge_78", "from": "Renly_Baratheon", "to": "Robert_Baratheon", "weight": 5}, {"id": "edge_79", "from": "Renly_Baratheon", "to": "Brienne_of_Tarth", "weight": 8}],
+            legend: [{"id": 0, "name": "House Stark (The North)", "color": "#8be9fd"}, {"id": 2, "name": "House Lannister (King's Landing)", "color": "#ffb86c"}, {"id": 4, "name": "House Targaryen (Essos Campaign)", "color": "#ff5555"}, {"id": 3, "name": "Night's Watch & Wildlings", "color": "#50fa7b"}, {"id": 1, "name": "House Baratheon & Rebels", "color": "#bd93f9"}]
+        };
+
+        let network;
+        let nodesDataset;
+        let edgesDataset;
+        let activeMetric = 'betweenness'; // default node size metric
+        let selectedNodeId = null;
+        let physicsEnabled = true;
+
+        // RGBA helper
+        function hexToRgba(hex, alpha) {
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
+
+        // Format floats
+        function fmt(val) {
+            return Number(val).toFixed(4);
+        }
+
+        // Initialize Vis.js network
+        function initNetwork() {
+            const container = document.getElementById('network');
+            
+            // Build vis-ready arrays
+            const visNodes = graphData.nodes.map(n => {
+                // Initial sizing based on betweenness
+                const size = 15 + (n.betweenness * 100);
+                
+                // Label proportionality: only top actors show label initially to avoid clutter
+                // Top 10 actors by betweenness
+                const topActors = ['Jon_Snow', 'Daenerys_Targaryen', 'Tyrion_Lannister', 'Robert_Baratheon', 'Cersei_Lannister', 'Ned_Stark', 'Sansa_Stark', 'Arya_Stark', 'Samwell_Tarly', 'Jaime_Lannister'];
+                const showLabel = topActors.includes(n.id);
+                
+                return {
+                    id: n.id,
+                    label: showLabel ? n.label : " ",
+                    title: (() => {
+                        const el = document.createElement('div');
+                        el.style.padding = '4px';
+                        el.innerHTML = `
+                            <div style="font-weight: 700; color: ${n.baseColor}; font-size: 14px; margin-bottom: 6px; font-family: 'Outfit', sans-serif;">${n.label}</div>
+                            <div style="font-size: 12px; color: #e2e8f0; margin-bottom: 4px; font-family: 'Inter', sans-serif;"><b>Faction:</b> ${n.faction}</div>
+                            <div style="font-size: 12px; color: #e2e8f0; margin-bottom: 4px; font-family: 'Inter', sans-serif;"><b>Alliance:</b> ${n.communityName}</div>
+                            <div style="font-size: 11px; color: #bd93f9; font-family: 'Inter', sans-serif;"><b>Centrality:</b> ${Number(n.betweenness).toFixed(4)}</div>
+                        `;
+                        return el;
+                    })(),
+                    size: size,
+                    color: {
+                        background: n.baseColor,
+                        border: '#222222',
+                        highlight: {
+                            background: '#ffffff',
+                            border: n.baseColor
+                        },
+                        hover: {
+                            background: '#ffffff',
+                            border: n.baseColor
+                        }
+                    },
+                    font: {
+                        size: showLabel ? 15 : 10,
+                        color: '#f8f8f2',
+                        face: 'Outfit, sans-serif',
+                        strokeWidth: 3,
+                        strokeColor: '#07090e'
+                    },
+                    borderWidth: 2,
+                    borderWidthSelected: 4
+                };
+            });
+
+            const visEdges = graphData.edges.map(e => {
+                return {
+                    id: e.id,
+                    from: e.from,
+                    to: e.to,
+                    value: e.weight,
+                    width: 1 + (e.weight * 0.5),
+                    title: (() => {
+                        const el = document.createElement('div');
+                        el.style.padding = '2px';
+                        el.innerHTML = `<span style="font-family: 'Inter', sans-serif; font-size: 12px;">Interaction strength: <b>${e.weight}/10</b></span>`;
+                        return el;
+                    })(),
+                    color: {
+                        color: 'rgba(255, 255, 255, 0.12)',
+                        highlight: 'rgba(189, 147, 249, 0.8)',
+                        hover: 'rgba(189, 147, 249, 0.8)'
+                    },
+                    smooth: {
+                        type: 'continuous',
+                        roundness: 0.4
+                    }
+                };
+            });
+
+            nodesDataset = new vis.DataSet(visNodes);
+            edgesDataset = new vis.DataSet(visEdges);
+
+            const data = {
+                nodes: nodesDataset,
+                edges: edgesDataset
+            };
+
+            const options = {
+                nodes: {
+                    shape: 'dot',
+                    scaling: {
+                        min: 15,
+                        max: 80
+                    },
+                    shadow: {
+                        enabled: true,
+                        color: 'rgba(0, 0, 0, 0.5)',
+                        size: 8,
+                        x: 4,
+                        y: 4
+                    }
+                },
+                edges: {
+                    shadow: {
+                        enabled: false
+                    }
+                },
+                physics: {
+                    solver: 'forceAtlas2Based',
+                    forceAtlas2Based: {
+                        gravitationalConstant: -180,
+                        centralGravity: 0.015,
+                        springLength: 110,
+                        springConstant: 0.07,
+                        damping: 0.4,
+                        avoidOverlap: 1
+                    },
+                    stabilization: {
+                        enabled: true,
+                        iterations: 400,
+                        updateInterval: 50,
+                        fit: true
+                    }
+                },
+                interaction: {
+                    hover: true,
+                    tooltipDelay: 50,
+                    hideEdgesOnDrag: false,
+                    zoomView: true,
+                    dragView: true
+                }
+            };
+
+            network = new vis.Network(container, data, options);
+
+            // Hide loading overlay when stabilization completes
+            network.on("stabilizationIterationsDone", function () {
+                document.getElementById('loading').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('loading').style.display = 'none';
+                }, 500);
+            });
+
+            // Bind click event
+            network.on("click", function(params) {
+                if (params.nodes.length > 0) {
+                    selectedNodeId = params.nodes[0];
+                    updateProfileCard(selectedNodeId);
+                    highlightConnections(selectedNodeId);
+                } else {
+                    selectedNodeId = null;
+                    resetHighlight();
+                    resetProfileCard();
+                }
+            });
+
+            // Render community legend
+            renderLegend();
+        }
+
+        // Render Legend list
+        function renderLegend() {
+            const list = document.getElementById('legend-list');
+            list.innerHTML = "";
+            graphData.legend.forEach(item => {
+                const el = document.createElement('div');
+                el.className = 'legend-item';
+                el.onclick = () => filterByCommunity(item.id);
+                el.innerHTML = `
+                    <span class="legend-dot" style="color: ${item.color}; background-color: ${item.color}"></span>
+                    <span>${item.name}</span>
+                `;
+                list.appendChild(el);
+            });
+            document.getElementById('comm-count').textContent = graphData.legend.length;
+        }
+
+        // Switch size metrics (betweenness centrality vs degree centrality)
+        function switchMetric(metric) {
+            activeMetric = metric;
+            document.getElementById('btn-betweenness').classList.toggle('active', metric === 'betweenness');
+            document.getElementById('btn-degree').classList.toggle('active', metric === 'degree');
+
+            const updates = graphData.nodes.map(n => {
+                const val = (metric === 'betweenness') ? n.betweenness : n.degreeCentrality;
+                // Sizing math
+                const size = 15 + (val * 100);
+                
+                // Size scale adjustment
+                return {
+                    id: n.id,
+                    size: size
+                };
+            });
+            nodesDataset.update(updates);
+
+            if (selectedNodeId) {
+                updateProfileCard(selectedNodeId);
+            }
+        }
+
+        // Filter nodes by faction
+        function filterFaction(faction) {
+            resetHighlight();
+            if (faction === 'all') {
+                // reset filters
+                const updates = graphData.nodes.map(n => {
+                    return { id: n.id, hidden: false };
+                });
+                nodesDataset.update(updates);
+            } else {
+                const updates = graphData.nodes.map(n => {
+                    return {
+                        id: n.id,
+                        hidden: n.faction !== faction
+                    };
+                });
+                nodesDataset.update(updates);
+            }
+        }
+
+        // Filter by community from legend click
+        function filterByCommunity(communityId) {
+            resetHighlight();
+            const updates = graphData.nodes.map(n => {
+                return {
+                    id: n.id,
+                    hidden: n.communityId !== communityId
+                };
+            });
+            nodesDataset.update(updates);
+            document.getElementById('faction-filter').value = 'all'; // reset select input
+        }
+
+        // Search character
+        function searchCharacter(query) {
+            if (!query) {
+                return;
+            }
+            const matched = graphData.nodes.find(n => n.label.toLowerCase().includes(query.toLowerCase()));
+            if (matched) {
+                network.selectNodes([matched.id]);
+                selectedNodeId = matched.id;
+                updateProfileCard(matched.id);
+                highlightConnections(matched.id);
+                
+                // Focus camera on node
+                network.focus(matched.id, {
+                    scale: 1.2,
+                    animation: {
+                        duration: 800,
+                        easingFunction: 'easeInOutQuad'
+                    }
+                });
+            }
+        }
+
+        // Physics controls
+        function togglePhysics() {
+            physicsEnabled = !physicsEnabled;
+            network.setOptions({ physics: { enabled: physicsEnabled } });
+            
+            const btn = document.getElementById('btn-physics');
+            const icon = document.getElementById('physics-icon');
+            
+            if (physicsEnabled) {
+                btn.innerHTML = `<i id="physics-icon" class="ph-bold ph-pause"></i> Pause Simulation`;
+                btn.classList.add('active');
+            } else {
+                btn.innerHTML = `<i id="physics-icon" class="ph-bold ph-play"></i> Resume Simulation`;
+                btn.classList.remove('active');
+            }
+        }
+
+        // Camera control functions
+        function zoomIn() { network.moveTo({ scale: network.getScale() * 1.3 }); }
+        function zoomOut() { network.moveTo({ scale: network.getScale() * 0.7 }); }
+        function resetView() {
+            network.fit({
+                animation: {
+                    duration: 500,
+                    easingFunction: 'easeInOutQuad'
+                }
+            });
+            resetHighlight();
+            resetProfileCard();
+            document.getElementById('faction-filter').value = 'all';
+            document.getElementById('search-input').value = '';
+            filterFaction('all');
+        }
+
+        // Highlight connected sub-graph of selected node
+        function highlightConnections(nodeId) {
+            const connectedNodes = network.getConnectedNodes(nodeId);
+            const connectedEdges = network.getConnectedEdges(nodeId);
+
+            // Mute all nodes except selected and neighbors
+            const nodeUpdates = graphData.nodes.map(n => {
+                let opacity = 0.15;
+                let border = 1;
+                
+                if (n.id === nodeId) {
+                    opacity = 1.0;
+                    border = 4;
+                } else if (connectedNodes.includes(n.id)) {
+                    opacity = 0.95;
+                    border = 2.5;
+                }
+
+                return {
+                    id: n.id,
+                    color: {
+                        background: hexToRgba(n.baseColor, opacity),
+                        border: hexToRgba('#222222', opacity),
+                        highlight: {
+                            background: '#ffffff',
+                            border: n.baseColor
+                        }
+                    },
+                    borderWidth: border,
+                    font: {
+                        color: `rgba(248, 248, 242, ${opacity})`
+                    }
+                };
+            });
+            nodesDataset.update(nodeUpdates);
+
+            // Mute all edges except neighbors
+            const edgeUpdates = graphData.edges.map(e => {
+                let opacity = 0.04;
+                let color = 'rgba(255, 255, 255, 0.04)';
+                let width = 1;
+                
+                if (connectedEdges.includes(e.id)) {
+                    opacity = 0.85;
+                    color = 'rgba(189, 147, 249, 0.85)';
+                    width = 1.5 + (e.weight * 0.5);
+                }
+
+                return {
+                    id: e.id,
+                    color: { color: color },
+                    width: width
+                };
+            });
+            edgesDataset.update(edgeUpdates);
+        }
+
+        // Reset highlights
+        function resetHighlight() {
+            const nodeUpdates = graphData.nodes.map(n => {
+                return {
+                    id: n.id,
+                    color: {
+                        background: n.baseColor,
+                        border: '#222222'
+                    },
+                    borderWidth: 2,
+                    font: {
+                        color: '#f8f8f2'
+                    }
+                };
+            });
+            nodesDataset.update(nodeUpdates);
+
+            const edgeUpdates = graphData.edges.map(e => {
+                return {
+                    id: e.id,
+                    color: { color: 'rgba(255, 255, 255, 0.12)' },
+                    width: 1 + (e.weight * 0.5)
+                };
+            });
+            edgesDataset.update(edgeUpdates);
+        }
+
+        // Update Card details
+        function updateProfileCard(nodeId) {
+            const node = graphData.nodes.find(n => n.id === nodeId);
+            const container = document.getElementById('profile-card');
+            
+            // Format metrics
+            const metricValue = activeMetric === 'betweenness' ? node.betweenness : node.degreeCentrality;
+            const metricPercent = (metricValue * 100).toFixed(1);
+            
+            let connectionsHtml = "";
+            node.connections.forEach(conn => {
+                connectionsHtml += `
+                    <div class="connection-item" onclick="focusNode('${conn.id}')">
+                        <span style="font-weight: 500">${conn.label}</span>
+                        <span style="color: var(--accent); font-weight: 600">Weight: ${conn.weight}</span>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = `
+                <div class="profile-header">
+                    <div>
+                        <div class="profile-title">${node.label}</div>
+                        <div class="faction-badge" style="border-color: ${node.baseColor}; color: ${node.baseColor}">
+                            ${node.faction}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="profile-meta-row">
+                    <div class="meta-stat">
+                        <div class="stat-label-container">
+                            <span>Centrality Importance</span>
+                            <span>${metricPercent}%</span>
+                        </div>
+                        <div class="stat-bar-outer">
+                            <div class="stat-bar-inner" style="width: ${metricPercent}%; background-color: ${node.baseColor}"></div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 15px; font-size: 12px; margin-top: 4px;">
+                        <div><b>Connections:</b> ${node.degree}</div>
+                        <div><b>Betweenness:</b> ${fmt(node.betweenness)}</div>
+                    </div>
+                </div>
+                
+                <div>
+                    <div class="input-label" style="margin-bottom: 8px;">Top Relationships (Strong Ties)</div>
+                    <div class="connections-list">
+                        ${connectionsHtml}
+                    </div>
+                </div>
+            `;
+        }
+
+        function focusNode(nodeId) {
+            network.selectNodes([nodeId]);
+            selectedNodeId = nodeId;
+            updateProfileCard(nodeId);
+            highlightConnections(nodeId);
+            network.focus(nodeId, {
+                scale: 1.2,
+                animation: {
+                    duration: 500,
+                    easingFunction: 'easeInOutQuad'
+                }
+            });
+        }
+
+        function resetProfileCard() {
+            const container = document.getElementById('profile-card');
+            container.innerHTML = `
+                <div class="profile-placeholder">
+                    <i class="ph ph-fingerprint"></i>
+                    <p>Click on any character node to inspect centrality stats and key relationships.</p>
+                </div>
+            `;
+        }
+
+        // Initialize window load
+        window.addEventListener("load", () => {
+            initNetwork();
+        });
+    </script>
+</body>
+</html>
